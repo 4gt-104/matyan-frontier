@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=61", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "matyan-frontier"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Ingestion gateway: WebSocket + presigned S3 URLs, publishes to Kafka"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -50,6 +50,9 @@ Documentation = "https://4gt-104.github.io/matyan-core/"
 
 [project.scripts]
 matyan-frontier = "matyan_frontier.cli:main"
+
+[tool.setuptools_scm]
+fallback_version = "0.2.0"
 
 [tool.ruff]
 line-length = 120
