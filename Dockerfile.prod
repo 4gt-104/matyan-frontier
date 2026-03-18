@@ -16,6 +16,7 @@ COPY pyproject.toml /app/matyan-frontier/
 RUN cd /app/matyan-frontier && uv pip install --system --no-cache --no-sources -r pyproject.toml
 
 COPY src/ /app/matyan-frontier/src/
-RUN uv pip install --system --no-cache --no-deps /app/matyan-frontier/
+ARG IMAGE_VERSION=0.2.0
+RUN SETUPTOOLS_SCM_PRETEND_VERSION="${IMAGE_VERSION}" uv pip install --system --no-cache --no-deps /app/matyan-frontier/
 
 CMD ["matyan-frontier", "start", "--host", "0.0.0.0", "--port", "53801"]
