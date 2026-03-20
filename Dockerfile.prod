@@ -12,11 +12,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.10.3@sha256:7a88d4c4e6f44200575000638453a5a38
 
 WORKDIR /app
 
-COPY pyproject.toml /app/matyan-frontier/
-RUN cd /app/matyan-frontier && uv pip install --system --no-cache --no-sources -r pyproject.toml
-
-COPY src/ /app/matyan-frontier/src/
-ARG IMAGE_VERSION=0.2.0
-RUN SETUPTOOLS_SCM_PRETEND_VERSION="${IMAGE_VERSION}" uv pip install --system --no-cache --no-deps /app/matyan-frontier/
+# Install matyan-frontier from PyPI.
+RUN uv pip install --system --no-cache "matyan-frontier==${IMAGE_VERSION}"
 
 CMD ["matyan-frontier", "start", "--host", "0.0.0.0", "--port", "53801"]
