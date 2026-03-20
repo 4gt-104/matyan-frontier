@@ -1,26 +1,23 @@
-# Tag release: publish wheel + sdist to Test PyPI, then build and push the production
-# Docker image (installs matyan-frontier from Test PyPI).
+# Tag release: publish wheel + sdist to PyPI, then build and push the production
+# Docker image (installs matyan-frontier from PyPI).
 #
-# Uses OIDC Trusted Publisher — no API token secret required for Test PyPI.
-# One-time setup on Test PyPI:
-#   1. Go to https://test.pypi.org/manage/account/publishing/
+# Uses OIDC Trusted Publisher — no API token secret required for PyPI.
+# One-time setup on PyPI:
+#   1. Go to https://pypi.org/manage/account/publishing/
 #   2. Add a new pending publisher:
 #      - PyPI project name : matyan-frontier
 #      - Owner             : <your-github-org-or-username>
-#      - Repository        : matyan-core   (the repo that holds this file)
+#      - Repository        : matyan-frontier   (the repo that holds this file)
 #      - Workflow name     : release.yml
-#      - Environment name  : test-pypi
+#      - Environment name  : pypi
 #
-# The "test-pypi" GitHub environment can optionally have branch/tag
+# The "pypi" GitHub environment can optionally have branch/tag
 # protection rules to restrict which refs are allowed to publish.
 #
 # Docker Hub (for the docker job):
 #   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
-#
-# If you previously used pypi-publish.yml for Trusted Publishing, update the
-# pending publisher on Test PyPI to use workflow name release.yml.
 
-name: Release (Test PyPI + Docker)
+name: Release (PyPI + Docker)
 
 on:
   push:
@@ -58,10 +55,10 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: Publish to Test PyPI
+    name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
-    environment: test-pypi
+    environment: pypi
     permissions:
       # Required for OIDC Trusted Publisher authentication
       id-token: write
@@ -73,10 +70,8 @@ jobs:
           name: dist
           path: dist/
 
-      - name: Publish to Test PyPI
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
   docker-build-and-push:
     name: Docker build and push
@@ -97,8 +92,8 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for Test PyPI index propagation
-        run: sleep 45
+      - name: Wait for PyPI index propagation
+        run: sleep 60
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
