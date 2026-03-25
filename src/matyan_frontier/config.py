@@ -39,7 +39,7 @@ def validate_production_settings(settings: Settings) -> None:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     environment: str = Field(
         default="development",
@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     s3_access_key: str = "rustfsadmin"
     s3_secret_key: str = "rustfsadmin"  # noqa: S105
     s3_bucket: str = "matyan-artifacts"
+    s3_region: str = "us-east-1"
     s3_presign_expiry: int = 3600
 
     # Shutdown
