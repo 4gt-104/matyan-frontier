@@ -75,7 +75,7 @@ def _s3_client_kwargs(endpoint_url: str) -> dict[str, Any]:
         "aws_access_key_id": SETTINGS.s3_access_key,
         "aws_secret_access_key": SETTINGS.s3_secret_key,
         "config": BotoConfig(signature_version="s3v4"),
-        "region_name": "us-east-1",
+        "region_name": SETTINGS.s3_region,
     }
 
 
