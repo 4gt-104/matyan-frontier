@@ -42,15 +42,28 @@ async def readiness(request: Request) -> JSONResponse:
         healthy = False
 
     try:
-        s3_client = getattr(request.app.state, "s3_client", None)
-        if s3_client is not None:
-            await s3_client.head_bucket(Bucket=SETTINGS.s3_bucket)
-            checks["s3"] = "ok"
+        if SETTINGS.blob_backend_type == "gcs":
+            import asyncio  # noqa: PLC0415
+            gcs_client = getattr(request.app.state, "gcs_client", None)
+            if gcs_client is not None:
+                bucket = gcs_client.bucket(SETTINGS.gcs_bucket)
+                exists = await asyncio.to_thread(bucket.exists)
+                if exists:
+                    checks["s3"] = "ok"
+                else:
+                    checks["s3"] = "bucket not found"
+            else:
+                checks["s3"] = "client not initialized"
         else:
-            checks["s3"] = "client not initialized"
+            s3_client = getattr(request.app.state, "s3_client", None)
+            if s3_client is not None:
+                await s3_client.head_bucket(Bucket=SETTINGS.s3_bucket)
+                checks["s3"] = "ok"
+            else:
+                checks["s3"] = "client not initialized"
     except Exception as exc:  # noqa: BLE001
         checks["s3"] = str(exc)
-        logger.warning("S3 health check failed: {}", exc)
+        logger.warning("Storage health check failed: {}", exc)
 
     status_code = 200 if healthy else 503
     return JSONResponse(
