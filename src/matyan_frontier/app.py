@@ -10,6 +10,7 @@ import aioboto3
 from botocore.config import Config as BotoConfig
 from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from google.cloud import storage
 from loguru import logger
 from prometheus_client import generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -87,19 +88,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await producer.start()
 
     if SETTINGS.blob_backend_type == "gcs":
-        from google.cloud import storage  # noqa: PLC0415
         gcs_client = storage.Client()
         app.state.gcs_client = gcs_client
         app.state.gcs_presign_client = gcs_client
-        
+
         def _ensure_gcs_bucket() -> None:
             b = gcs_client.bucket(SETTINGS.gcs_bucket)
             if not b.exists():
                 b.create()
                 logger.info("Created GCS bucket {!r}", SETTINGS.gcs_bucket)
-        
+
         await asyncio.to_thread(_ensure_gcs_bucket)
-        
+
         try:
             yield
         finally:

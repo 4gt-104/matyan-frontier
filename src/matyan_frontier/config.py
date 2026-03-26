@@ -14,16 +14,22 @@ _DEV_S3_ENDPOINT = "http://localhost:9000"
 _DEV_KAFKA_BOOTSTRAP = "localhost:9092"
 
 
-def validate_production_settings(settings: Settings) -> None:
+def validate_production_settings(settings: Settings) -> None:  # noqa: C901
     """When environment is production, require that S3/Kafka settings are not dev defaults."""
     if settings.environment != "production":
         return
     if settings.blob_backend_type == "s3":
         if settings.s3_access_key == _DEV_S3_CRED:
-            msg = "In production, S3_ACCESS_KEY must be set explicitly (not dev default). Set from env or secrets backend."
+            msg = (
+                "In production, S3_ACCESS_KEY must be set explicitly (not dev default). "
+                "Set from env or secrets backend."
+            )
             raise ValueError(msg)
         if settings.s3_secret_key == _DEV_S3_CRED:
-            msg = "In production, S3_SECRET_KEY must be set explicitly (not dev default). Set from env or secrets backend."
+            msg = (
+                "In production, S3_SECRET_KEY must be set explicitly (not dev default). "
+                "Set from env or secrets backend."
+            )
             raise ValueError(msg)
         if settings.s3_endpoint == _DEV_S3_ENDPOINT:
             msg = "In production, S3_ENDPOINT must be set explicitly (not dev default). Set from env."
@@ -138,7 +144,7 @@ def validate_settings(settings: Settings) -> None:
     if settings.blob_backend_type not in ("s3", "gcs"):
         msg = f"Invalid BLOB_BACKEND_TYPE: {settings.blob_backend_type!r}. Must be 's3' or 'gcs'."
         raise ValueError(msg)
-    
+
     if settings.blob_backend_type == "s3":
         _validate_s3_url(settings.s3_endpoint, "s3_endpoint")
         if settings.s3_public_endpoint:
