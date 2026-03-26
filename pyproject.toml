@@ -40,6 +40,8 @@ dependencies = [
     "prometheus-client~=0.21",
     "aioboto3>=7.0.0",
     "boto3>=1.42.53",
+    "google-cloud-storage~=2.14",
+    "gcloud-aio-storage~=9.3.0",
     "matyan-api-models~=0.2.0",
 ]
 

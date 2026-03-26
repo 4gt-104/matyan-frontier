@@ -10,6 +10,7 @@ import aioboto3
 from botocore.config import Config as BotoConfig
 from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from google.cloud import storage
 from loguru import logger
 from prometheus_client import generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -86,31 +87,54 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     producer = get_producer()
     await producer.start()
 
-    session = aioboto3.Session()
-    stack = AsyncExitStack()
-    s3_client: S3Client = await stack.enter_async_context(
-        session.client(**_s3_client_kwargs(SETTINGS.s3_endpoint)),
-    )
-    await ensure_bucket(s3_client, SETTINGS.s3_bucket)
+    if SETTINGS.blob_backend_type == "gcs":
+        gcs_client = storage.Client()
+        app.state.gcs_client = gcs_client
+        app.state.gcs_presign_client = gcs_client
 
-    presign_endpoint = SETTINGS.s3_public_endpoint or SETTINGS.s3_endpoint
-    s3_presign_client: S3Client = await stack.enter_async_context(
-        session.client(**_s3_client_kwargs(presign_endpoint)),
-    )
+        def _ensure_gcs_bucket() -> None:
+            b = gcs_client.bucket(SETTINGS.gcs_bucket)
+            if not b.exists():
+                b.create()
+                logger.info("Created GCS bucket {!r}", SETTINGS.gcs_bucket)
 
-    app.state.s3_client = s3_client
-    app.state.s3_presign_client = s3_presign_client
+        await asyncio.to_thread(_ensure_gcs_bucket)
 
-    try:
-        yield
-    finally:
-        logger.info("Shutdown: flushing Kafka producer…")
-        await producer.flush(timeout=SETTINGS.shutdown_flush_timeout)
-        logger.info("Shutdown: stopping Kafka producer…")
-        await producer.stop()
-        logger.info("Shutdown: closing S3 clients…")
-        await stack.aclose()
-        logger.info("Shutdown complete")
+        try:
+            yield
+        finally:
+            logger.info("Shutdown: flushing Kafka producer…")
+            await producer.flush(timeout=SETTINGS.shutdown_flush_timeout)
+            logger.info("Shutdown: stopping Kafka producer…")
+            await producer.stop()
+            logger.info("Shutdown complete")
+
+    else:
+        session = aioboto3.Session()
+        stack = AsyncExitStack()
+        s3_client: S3Client = await stack.enter_async_context(
+            session.client(**_s3_client_kwargs(SETTINGS.s3_endpoint)),
+        )
+        await ensure_bucket(s3_client, SETTINGS.s3_bucket)
+
+        presign_endpoint = SETTINGS.s3_public_endpoint or SETTINGS.s3_endpoint
+        s3_presign_client: S3Client = await stack.enter_async_context(
+            session.client(**_s3_client_kwargs(presign_endpoint)),
+        )
+
+        app.state.s3_client = s3_client
+        app.state.s3_presign_client = s3_presign_client
+
+        try:
+            yield
+        finally:
+            logger.info("Shutdown: flushing Kafka producer…")
+            await producer.flush(timeout=SETTINGS.shutdown_flush_timeout)
+            logger.info("Shutdown: stopping Kafka producer…")
+            await producer.stop()
+            logger.info("Shutdown: closing S3 clients…")
+            await stack.aclose()
+            logger.info("Shutdown complete")
 
 
 app = FastAPI(title="Matyan Frontier", lifespan=lifespan)

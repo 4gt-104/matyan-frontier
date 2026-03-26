@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 from matyan_frontier.log_context import log_context_filter
@@ -51,11 +52,11 @@ class TestConfigureLogging:
 class TestFormatWithSeparator:
     def test_no_ctx_no_separator(self) -> None:
         record = {"extra": {"ctx": ""}}
-        fmt = _format_with_separator(record)
+        fmt = _format_with_separator(cast("Any", record))
         assert " | {extra[ctx]}" not in fmt
         assert "{extra[ctx]}" in fmt
 
     def test_with_ctx_has_separator(self) -> None:
         record = {"extra": {"ctx": "request_id=abc"}}
-        fmt = _format_with_separator(record)
+        fmt = _format_with_separator(cast("Any", record))
         assert " | {extra[ctx]}" in fmt

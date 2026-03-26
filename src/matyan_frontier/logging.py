@@ -1,10 +1,16 @@
 """Centralized loguru configuration."""
 
+from __future__ import annotations
+
 import sys
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from .log_context import log_context_filter
+
+if TYPE_CHECKING:
+    from loguru import Record
 
 _FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
@@ -15,7 +21,7 @@ _FORMAT = (
 )
 
 
-def _format_with_separator(record: dict) -> str:
+def _format_with_separator(record: Record) -> str:
     """Return format string, inserting `` | `` separator when ctx is non-empty."""
     ctx = record["extra"].get("ctx", "")
     sep = " | " if ctx else ""

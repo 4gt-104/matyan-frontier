@@ -14,22 +14,33 @@ _DEV_S3_ENDPOINT = "http://localhost:9000"
 _DEV_KAFKA_BOOTSTRAP = "localhost:9092"
 
 
-def validate_production_settings(settings: Settings) -> None:
+def validate_production_settings(settings: Settings) -> None:  # noqa: C901
     """When environment is production, require that S3/Kafka settings are not dev defaults."""
     if settings.environment != "production":
         return
-    if settings.s3_access_key == _DEV_S3_CRED:
-        msg = "In production, S3_ACCESS_KEY must be set explicitly (not dev default). Set from env or secrets backend."
-        raise ValueError(msg)
-    if settings.s3_secret_key == _DEV_S3_CRED:
-        msg = "In production, S3_SECRET_KEY must be set explicitly (not dev default). Set from env or secrets backend."
-        raise ValueError(msg)
-    if settings.s3_endpoint == _DEV_S3_ENDPOINT:
-        msg = "In production, S3_ENDPOINT must be set explicitly (not dev default). Set from env."
-        raise ValueError(msg)
-    if not settings.s3_endpoint.strip():
-        msg = "In production, S3_ENDPOINT must be set (non-empty)."
-        raise ValueError(msg)
+    if settings.blob_backend_type == "s3":
+        if settings.s3_access_key == _DEV_S3_CRED:
+            msg = (
+                "In production, S3_ACCESS_KEY must be set explicitly (not dev default). "
+                "Set from env or secrets backend."
+            )
+            raise ValueError(msg)
+        if settings.s3_secret_key == _DEV_S3_CRED:
+            msg = (
+                "In production, S3_SECRET_KEY must be set explicitly (not dev default). "
+                "Set from env or secrets backend."
+            )
+            raise ValueError(msg)
+        if settings.s3_endpoint == _DEV_S3_ENDPOINT:
+            msg = "In production, S3_ENDPOINT must be set explicitly (not dev default). Set from env."
+            raise ValueError(msg)
+        if not settings.s3_endpoint.strip():
+            msg = "In production, S3_ENDPOINT must be set (non-empty)."
+            raise ValueError(msg)
+    elif settings.blob_backend_type == "gcs":
+        if not settings.gcs_bucket.strip():
+            msg = "In production with GCS backend, GCS_BUCKET must be set."
+            raise ValueError(msg)
     if settings.kafka_bootstrap_servers == _DEV_KAFKA_BOOTSTRAP:
         msg = "In production, KAFKA_BOOTSTRAP_SERVERS must be set explicitly (not dev default). Set from env."
         raise ValueError(msg)
@@ -59,6 +70,9 @@ class Settings(BaseSettings):
     kafka_sasl_username: str = ""
     kafka_sasl_password: str = ""
 
+    # Blob backend type
+    blob_backend_type: str = "s3"  # "s3" or "gcs"
+
     # S3 (RustFS in dev, AWS S3 in prod)
     s3_endpoint: str = "http://localhost:9000"
     s3_public_endpoint: str = ""
@@ -67,6 +81,9 @@ class Settings(BaseSettings):
     s3_bucket: str = "matyan-artifacts"
     s3_region: str = "us-east-1"
     s3_presign_expiry: int = 3600
+
+    # GCS
+    gcs_bucket: str = "matyan-artifacts"
 
     # Shutdown
     shutdown_flush_timeout: float = 5.0
@@ -124,12 +141,21 @@ def _validate_s3_url(value: str, field: str) -> None:
 def validate_settings(settings: Settings) -> None:
     """Validate format of critical settings; raise ``ValueError`` on first failure."""
     _validate_bootstrap_servers(settings.kafka_bootstrap_servers)
-    _validate_s3_url(settings.s3_endpoint, "s3_endpoint")
-    if settings.s3_public_endpoint:
-        _validate_s3_url(settings.s3_public_endpoint, "s3_public_endpoint")
-    if not settings.s3_bucket.strip():
-        msg = "s3_bucket must not be empty"
+    if settings.blob_backend_type not in ("s3", "gcs"):
+        msg = f"Invalid BLOB_BACKEND_TYPE: {settings.blob_backend_type!r}. Must be 's3' or 'gcs'."
         raise ValueError(msg)
+
+    if settings.blob_backend_type == "s3":
+        _validate_s3_url(settings.s3_endpoint, "s3_endpoint")
+        if settings.s3_public_endpoint:
+            _validate_s3_url(settings.s3_public_endpoint, "s3_public_endpoint")
+        if not settings.s3_bucket.strip():
+            msg = "s3_bucket must not be empty"
+            raise ValueError(msg)
+    elif settings.blob_backend_type == "gcs":
+        if not settings.gcs_bucket.strip():
+            msg = "gcs_bucket must not be empty"
+            raise ValueError(msg)
 
 
 SETTINGS = Settings()
