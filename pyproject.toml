@@ -42,6 +42,8 @@ dependencies = [
     "boto3>=1.42.53",
     "google-cloud-storage~=2.14",
     "gcloud-aio-storage~=9.3.0",
+    "azure-storage-blob~=12.24",
+    "azure-identity~=1.19",
     "matyan-api-models~=0.2.0",
 ]
 
