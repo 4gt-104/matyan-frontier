@@ -7,6 +7,8 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from typing import TYPE_CHECKING
 
 import aioboto3
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
 from botocore.config import Config as BotoConfig
 from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -81,7 +83,7 @@ def _s3_client_kwargs(endpoint_url: str) -> dict[str, Any]:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: PLR0915
     validate_settings(SETTINGS)
 
     producer = get_producer()
@@ -99,6 +101,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 logger.info("Created GCS bucket {!r}", SETTINGS.gcs_bucket)
 
         await asyncio.to_thread(_ensure_gcs_bucket)
+
+        try:
+            yield
+        finally:
+            logger.info("Shutdown: flushing Kafka producer…")
+            await producer.flush(timeout=SETTINGS.shutdown_flush_timeout)
+            logger.info("Shutdown: stopping Kafka producer…")
+            await producer.stop()
+            logger.info("Shutdown complete")
+
+    elif SETTINGS.blob_backend_type == "azure":
+        if SETTINGS.azure_conn_str:
+            azure_client = BlobServiceClient.from_connection_string(SETTINGS.azure_conn_str)
+        else:
+            azure_client = BlobServiceClient(
+                account_url=SETTINGS.azure_account_url,
+                credential=DefaultAzureCredential(),
+            )
+
+        app.state.azure_presign_client = azure_client
+
+        def _ensure_azure_container() -> None:
+            container = azure_client.get_container_client(SETTINGS.azure_container)
+            if not container.exists():
+                container.create_container()
+                logger.info("Created Azure container {!r}", SETTINGS.azure_container)
+
+        await asyncio.to_thread(_ensure_azure_container)
 
         try:
             yield
@@ -139,10 +169,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Matyan Frontier", lifespan=lifespan)
 
-app.add_middleware(RequestTimingMiddleware)  # ty:ignore[invalid-argument-type]
+app.add_middleware(RequestTimingMiddleware)
 
 app.add_middleware(
-    CORSMiddleware,  # ty:ignore[invalid-argument-type]
+    CORSMiddleware,
     allow_origins=SETTINGS.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],

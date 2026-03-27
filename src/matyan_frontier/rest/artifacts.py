@@ -6,6 +6,7 @@ import importlib.metadata
 import os
 from typing import TYPE_CHECKING
 
+from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Request
 from loguru import logger
@@ -57,13 +58,49 @@ class PresignRequest(BaseModel):
 class PresignResponse(BaseModel):
     upload_url: str
     s3_key: str
+    headers: dict[str, str] | None = None
 
 
 @rest_router.post("/artifacts/presign", response_model=PresignResponse)
 async def presign_upload(body: PresignRequest, request: Request) -> PresignResponse:
     s3_key = f"{body.run_id}/{body.artifact_path}"
+    headers: dict[str, str] | None = None
 
-    if SETTINGS.blob_backend_type == "gcs":
+    if SETTINGS.blob_backend_type == "azure":
+        presign_client: BlobServiceClient = request.app.state.azure_presign_client
+        container_name = SETTINGS.azure_container
+
+        def _get_sas() -> str:
+            if hasattr(presign_client.credential, "account_name"):
+                return generate_blob_sas(
+                    account_name=presign_client.credential.account_name,
+                    container_name=container_name,
+                    blob_name=s3_key,
+                    account_key=presign_client.credential.account_key,
+                    permission=BlobSasPermissions(write=True),
+                    expiry=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=SETTINGS.s3_presign_expiry),
+                )
+            key = presign_client.get_user_delegation_key(
+                datetime.datetime.now(datetime.UTC),
+                datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=SETTINGS.s3_presign_expiry),
+            )
+            return generate_blob_sas(
+                account_name=presign_client.account_name,
+                container_name=container_name,
+                blob_name=s3_key,
+                user_delegation_key=key,
+                permission=BlobSasPermissions(write=True),
+                expiry=datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=SETTINGS.s3_presign_expiry),
+            )
+
+        sas_token = await asyncio.to_thread(_get_sas)
+        base_url = presign_client.url.rstrip("/")
+        if "azurite" in base_url:
+            base_url = base_url.replace("azurite", "localhost")
+        upload_url = f"{base_url}/{container_name}/{s3_key}?{sas_token}"
+        headers = {"x-ms-blob-type": "BlockBlob"}
+
+    elif SETTINGS.blob_backend_type == "gcs":
         gcs_presign_client = request.app.state.gcs_presign_client
         bucket = gcs_presign_client.bucket(SETTINGS.gcs_bucket)
         blob = bucket.blob(s3_key)
@@ -91,4 +128,4 @@ async def presign_upload(body: PresignRequest, request: Request) -> PresignRespo
             ExpiresIn=SETTINGS.s3_presign_expiry,
         )
 
-    return PresignResponse(upload_url=upload_url, s3_key=s3_key)
+    return PresignResponse(upload_url=upload_url, s3_key=s3_key, headers=headers)

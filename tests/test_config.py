@@ -120,3 +120,9 @@ class TestValidateSettings:
     def test_whitespace_only_s3_bucket(self) -> None:
         with pytest.raises(ValueError, match="s3_bucket must not be empty"):
             validate_settings(_settings(s3_bucket="   "))
+
+    # -- azure errors --
+
+    def test_empty_azure_container(self) -> None:
+        with pytest.raises(ValueError, match="azure_container must not be empty"):
+            validate_settings(_settings(blob_backend_type="azure", azure_container=""))

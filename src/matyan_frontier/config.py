@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from urllib.parse import urlparse
 
 from pydantic import AliasChoices, Field
@@ -14,33 +15,41 @@ _DEV_S3_ENDPOINT = "http://localhost:9000"
 _DEV_KAFKA_BOOTSTRAP = "localhost:9092"
 
 
-def validate_production_settings(settings: Settings) -> None:  # noqa: C901
+def validate_production_settings(settings: Settings) -> None:  # noqa: C901, PLR0912
     """When environment is production, require that S3/Kafka settings are not dev defaults."""
     if settings.environment != "production":
         return
-    if settings.blob_backend_type == "s3":
-        if settings.s3_access_key == _DEV_S3_CRED:
-            msg = (
-                "In production, S3_ACCESS_KEY must be set explicitly (not dev default). "
-                "Set from env or secrets backend."
-            )
-            raise ValueError(msg)
-        if settings.s3_secret_key == _DEV_S3_CRED:
-            msg = (
-                "In production, S3_SECRET_KEY must be set explicitly (not dev default). "
-                "Set from env or secrets backend."
-            )
-            raise ValueError(msg)
-        if settings.s3_endpoint == _DEV_S3_ENDPOINT:
-            msg = "In production, S3_ENDPOINT must be set explicitly (not dev default). Set from env."
-            raise ValueError(msg)
-        if not settings.s3_endpoint.strip():
-            msg = "In production, S3_ENDPOINT must be set (non-empty)."
-            raise ValueError(msg)
-    elif settings.blob_backend_type == "gcs":
-        if not settings.gcs_bucket.strip():
-            msg = "In production with GCS backend, GCS_BUCKET must be set."
-            raise ValueError(msg)
+    match settings.blob_backend_type:
+        case "s3":
+            if settings.s3_access_key == _DEV_S3_CRED:
+                msg = (
+                    "In production, S3_ACCESS_KEY must be set explicitly (not dev default). "
+                    "Set from env or secrets backend."
+                )
+                raise ValueError(msg)
+            if settings.s3_secret_key == _DEV_S3_CRED:
+                msg = (
+                    "In production, S3_SECRET_KEY must be set explicitly (not dev default). "
+                    "Set from env or secrets backend."
+                )
+                raise ValueError(msg)
+            if settings.s3_endpoint == _DEV_S3_ENDPOINT:
+                msg = "In production, S3_ENDPOINT must be set explicitly (not dev default). Set from env."
+                raise ValueError(msg)
+            if not settings.s3_endpoint.strip():
+                msg = "In production, S3_ENDPOINT must be set (non-empty)."
+                raise ValueError(msg)
+        case "gcs":
+            if not settings.gcs_bucket.strip():
+                msg = "In production with GCS backend, GCS_BUCKET must be set."
+                raise ValueError(msg)
+        case "azure":
+            if not settings.azure_container.strip():
+                msg = "In production with Azure backend, AZURE_CONTAINER must be set."
+                raise ValueError(msg)
+            if not settings.azure_conn_str.strip() and not settings.azure_account_url.strip():
+                msg = "In production with Azure backend, AZURE_CONN_STR or AZURE_ACCOUNT_URL must be set."
+                raise ValueError(msg)
     if settings.kafka_bootstrap_servers == _DEV_KAFKA_BOOTSTRAP:
         msg = "In production, KAFKA_BOOTSTRAP_SERVERS must be set explicitly (not dev default). Set from env."
         raise ValueError(msg)
@@ -71,7 +80,7 @@ class Settings(BaseSettings):
     kafka_sasl_password: str = ""
 
     # Blob backend type
-    blob_backend_type: str = "s3"  # "s3" or "gcs"
+    blob_backend_type: Literal["s3", "gcs", "azure"] = "s3"
 
     # S3 (RustFS in dev, AWS S3 in prod)
     s3_endpoint: str = "http://localhost:9000"
@@ -84,6 +93,11 @@ class Settings(BaseSettings):
 
     # GCS
     gcs_bucket: str = "matyan-artifacts"
+
+    # Azure
+    azure_conn_str: str = ""
+    azure_account_url: str = ""
+    azure_container: str = "matyan-artifacts"
 
     # Shutdown
     shutdown_flush_timeout: float = 5.0
@@ -141,21 +155,26 @@ def _validate_s3_url(value: str, field: str) -> None:
 def validate_settings(settings: Settings) -> None:
     """Validate format of critical settings; raise ``ValueError`` on first failure."""
     _validate_bootstrap_servers(settings.kafka_bootstrap_servers)
-    if settings.blob_backend_type not in ("s3", "gcs"):
-        msg = f"Invalid BLOB_BACKEND_TYPE: {settings.blob_backend_type!r}. Must be 's3' or 'gcs'."
+    if settings.blob_backend_type not in ("s3", "gcs", "azure"):
+        msg = f"Invalid BLOB_BACKEND_TYPE: {settings.blob_backend_type!r}. Must be 's3', 'gcs', or 'azure'."
         raise ValueError(msg)
 
-    if settings.blob_backend_type == "s3":
-        _validate_s3_url(settings.s3_endpoint, "s3_endpoint")
-        if settings.s3_public_endpoint:
-            _validate_s3_url(settings.s3_public_endpoint, "s3_public_endpoint")
-        if not settings.s3_bucket.strip():
-            msg = "s3_bucket must not be empty"
-            raise ValueError(msg)
-    elif settings.blob_backend_type == "gcs":
-        if not settings.gcs_bucket.strip():
-            msg = "gcs_bucket must not be empty"
-            raise ValueError(msg)
+    match settings.blob_backend_type:
+        case "s3":
+            _validate_s3_url(settings.s3_endpoint, "s3_endpoint")
+            if settings.s3_public_endpoint:
+                _validate_s3_url(settings.s3_public_endpoint, "s3_public_endpoint")
+            if not settings.s3_bucket.strip():
+                msg = "s3_bucket must not be empty"
+                raise ValueError(msg)
+        case "gcs":
+            if not settings.gcs_bucket.strip():
+                msg = "gcs_bucket must not be empty"
+                raise ValueError(msg)
+        case "azure":
+            if not settings.azure_container.strip():
+                msg = "azure_container must not be empty"
+                raise ValueError(msg)
 
 
 SETTINGS = Settings()
