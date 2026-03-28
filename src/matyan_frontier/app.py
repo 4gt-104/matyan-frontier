@@ -24,7 +24,6 @@ from .log_context import set_request_id
 from .logging import configure_logging
 from .metrics import HTTP_REQUEST_DURATION, HTTP_REQUESTS_TOTAL, normalize_path
 from .rest import rest_router
-from .rest.artifacts import ensure_bucket
 from .ws import ws_router
 
 if TYPE_CHECKING:
@@ -145,7 +144,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: PLR0915
         s3_client: S3Client = await stack.enter_async_context(
             session.client(**_s3_client_kwargs(SETTINGS.s3_endpoint)),
         )
-        await ensure_bucket(s3_client, SETTINGS.s3_bucket)
 
         presign_endpoint = SETTINGS.s3_public_endpoint or SETTINGS.s3_endpoint
         s3_presign_client: S3Client = await stack.enter_async_context(

@@ -173,7 +173,7 @@ class TestBuildIngestionMessage:
             run_id = "r1"
 
         with pytest.raises(TypeError, match="Unhandled request type"):
-            _build_ingestion_message(FakeRequest())  # type: ignore[arg-type]
+            _build_ingestion_message(FakeRequest())  # ty:ignore[invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -356,7 +356,7 @@ class TestWsErrorPaths:
             msg = "connection refused"
             raise KafkaError(msg)
 
-        mock_producer.publish = _fail  # type: ignore[assignment]
+        mock_producer.publish = _fail  # ty:ignore[invalid-assignment]
         with (
             patch("matyan_frontier.app.get_producer", return_value=mock_producer),
             patch("matyan_frontier.ws.handler.get_producer", return_value=mock_producer),
@@ -385,7 +385,7 @@ class TestWsErrorPaths:
             msg = "boom"
             raise ValueError(msg)
 
-        mock_producer.publish = _explode  # type: ignore[assignment]
+        mock_producer.publish = _explode  # ty:ignore[invalid-assignment]
         with (
             patch("matyan_frontier.app.get_producer", return_value=mock_producer),
             patch("matyan_frontier.ws.handler.get_producer", return_value=mock_producer),

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 def _make_record() -> MagicMock:
     """Build a minimal loguru-style record dict wrapped in a MagicMock."""
     record: dict[str, object] = {"extra": {}}
-    return record  # type: ignore[return-value]
+    return record  # ty:ignore[invalid-return-type]
 
 
 class TestSetters:
@@ -53,7 +53,7 @@ class TestSetters:
 class TestLogContextFilter:
     def test_returns_true(self) -> None:
         record = _make_record()
-        assert log_context_filter(record) is True
+        assert log_context_filter(record) is True  # ty:ignore[invalid-argument-type]
 
     def test_empty_context_produces_empty_strings(self) -> None:
         t1 = _request_id_var.set(None)
@@ -61,7 +61,7 @@ class TestLogContextFilter:
         t3 = _connection_id_var.set(None)
         try:
             record = _make_record()
-            log_context_filter(record)
+            log_context_filter(record)  # ty:ignore[invalid-argument-type]
             assert record["extra"]["request_id"] == ""
             assert record["extra"]["run_id"] == ""
             assert record["extra"]["connection_id"] == ""
@@ -77,7 +77,7 @@ class TestLogContextFilter:
         t3 = _connection_id_var.set(None)
         try:
             record = _make_record()
-            log_context_filter(record)
+            log_context_filter(record)  # ty:ignore[invalid-argument-type]
             assert record["extra"]["request_id"] == "req-1"
             assert record["extra"]["ctx"] == "request_id=req-1"
         finally:
@@ -91,7 +91,7 @@ class TestLogContextFilter:
         t3 = _connection_id_var.set("conn-99")
         try:
             record = _make_record()
-            log_context_filter(record)
+            log_context_filter(record)  # ty:ignore[invalid-argument-type]
             assert record["extra"]["run_id"] == "run-42"
             assert record["extra"]["connection_id"] == "conn-99"
             assert "run_id=run-42" in record["extra"]["ctx"]
@@ -107,7 +107,7 @@ class TestLogContextFilter:
         t3 = _connection_id_var.set("c-8")
         try:
             record = _make_record()
-            log_context_filter(record)
+            log_context_filter(record)  # ty:ignore[invalid-argument-type]
             ctx = record["extra"]["ctx"]
             assert "request_id=r1" in ctx
             assert "run_id=run-7" in ctx

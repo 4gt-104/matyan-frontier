@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "matyan-frontier"
 dynamic = ["version"]
-description = "Ingestion gateway: WebSocket + presigned S3 URLs, publishes to Kafka"
+description = "Ingestion gateway: WebSocket + presigned blob URLs, publishes to Kafka"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 keywords = ["experiment-tracking", "ingestion", "websocket", "kafka"]
