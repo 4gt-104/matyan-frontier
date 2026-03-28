@@ -2,7 +2,7 @@ FROM python:3.12-slim AS base
 
 ARG IMAGE_VERSION=dev
 LABEL org.opencontainers.image.title="matyan-frontier"
-LABEL org.opencontainers.image.description="Ingestion gateway: WebSocket + presigned S3 URLs, publishes to Kafka"
+LABEL org.opencontainers.image.description="Ingestion gateway: WebSocket + presigned blob URLs, publishes to Kafka"
 LABEL org.opencontainers.image.version="${IMAGE_VERSION}"
 LABEL org.opencontainers.image.source="https://github.com/4gt-104/matyan-core"
 LABEL org.opencontainers.image.documentation="https://4gt-104.github.io/matyan-core/"

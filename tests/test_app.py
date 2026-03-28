@@ -39,10 +39,10 @@ class TestLifespan:
         assert mock_producer.stop_called
 
     def test_s3_clients_set_on_app_state(self, client: TestClient) -> None:
-        assert hasattr(client.app.state, "s3_client")
-        assert hasattr(client.app.state, "s3_presign_client")
-        assert client.app.state.s3_client is not None
-        assert client.app.state.s3_presign_client is not None
+        assert hasattr(client.app.state, "s3_client")  # ty:ignore[unresolved-attribute]
+        assert hasattr(client.app.state, "s3_presign_client")  # ty:ignore[unresolved-attribute]
+        assert client.app.state.s3_client is not None  # ty:ignore[unresolved-attribute]
+        assert client.app.state.s3_presign_client is not None  # ty:ignore[unresolved-attribute]
 
     def test_shutdown_order_flush_before_stop(self, mock_producer: MockKafkaProducer) -> None:
         """Verify flush() is called before stop() during shutdown."""
@@ -58,8 +58,8 @@ class TestLifespan:
             call_order.append("stop")
             await original_stop()
 
-        mock_producer.flush = _tracking_flush  # type: ignore[assignment]
-        mock_producer.stop = _tracking_stop  # type: ignore[assignment]
+        mock_producer.flush = _tracking_flush  # ty:ignore[invalid-assignment]
+        mock_producer.stop = _tracking_stop  # ty:ignore[invalid-assignment]
 
         with (
             patch("matyan_frontier.app.get_producer", return_value=mock_producer),
@@ -89,6 +89,7 @@ class TestMiddleware:
             mock_settings.metrics_enabled = False
             mock_settings.cors_origins = ("*",)
             mock_settings.log_level = "INFO"
+            mock_settings.blob_backend_type = "s3"
             mock_settings.s3_endpoint = "http://localhost:9000"
             mock_settings.s3_public_endpoint = ""
             mock_settings.s3_access_key = "key"

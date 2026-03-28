@@ -8,7 +8,7 @@ Prerequisites:
 Usage:
   cd matyan-frontier
   python scripts/smoke_test.py
-"""
+"""  # noqa: INP001
 
 from __future__ import annotations
 
@@ -21,6 +21,8 @@ import httpx
 from aiokafka import AIOKafkaConsumer
 from websockets.asyncio.client import connect as ws_connect
 
+# ruff: noqa: T201
+
 FRONTIER_URL = "http://localhost:53801"
 FRONTIER_WS = "ws://localhost:53801"
 KAFKA_BOOTSTRAP = "localhost:9092"
@@ -29,7 +31,7 @@ DATA_INGESTION_TOPIC = "data-ingestion"
 RUN_ID = "smoke_test_run_001"
 
 
-async def test_websocket() -> list[str]:
+async def run_websocket() -> list[str]:
     """Send create_run, log_metric, log_hparams, finish_run over WS."""
     url = f"{FRONTIER_WS}/api/v1/ws/runs/{RUN_ID}"
     print(f"\n[WS] Connecting to {url}")
@@ -71,15 +73,15 @@ async def test_websocket() -> list[str]:
             label = msg["type"]
             if status == "ok":
                 print(f"  [OK] {label}")
-                published_types.append(label)
+                published_types.append(label)  # ty:ignore[invalid-argument-type]
             else:
                 print(f"  [FAIL] {label}: {resp}")
 
     return published_types
 
 
-async def test_presigned_url() -> bool:
-    """Request a presigned S3 upload URL."""
+async def run_presigned_url() -> bool:
+    """Request a presigned blob upload URL."""
     url = f"{FRONTIER_URL}/api/v1/rest/artifacts/presign"
     print(f"\n[REST] POST {url}")
 
@@ -135,8 +137,8 @@ async def main() -> None:
     print("Frontier Smoke Test")
     print("=" * 60)
 
-    ws_types = await test_websocket()
-    presign_ok = await test_presigned_url()
+    ws_types = await run_websocket()
+    presign_ok = await run_presigned_url()
 
     expected = len(ws_types) + (1 if presign_ok else 0)
     kafka_count = await verify_kafka(expected)

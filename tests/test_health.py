@@ -29,7 +29,7 @@ class TestReadiness:
         body = resp.json()
         assert body["status"] == "ok"
         assert body["checks"]["kafka"] == "ok"
-        assert "s3" in body["checks"]
+        assert "blob" in body["checks"]
 
     def test_kafka_not_started(
         self,
@@ -55,28 +55,112 @@ class TestReadiness:
         assert "boom" in body["checks"]["kafka"]
 
     def test_s3_client_not_initialized(self, client: TestClient) -> None:
-        original = client.app.state.s3_client
+        original = client.app.state.s3_client  # ty:ignore[unresolved-attribute]
         try:
-            del client.app.state.s3_client
+            del client.app.state.s3_client  # ty:ignore[unresolved-attribute]
             resp = client.get("/health/ready/")
             assert resp.status_code == 200
             body = resp.json()
-            assert body["checks"]["s3"] == "client not initialized"
+            assert body["checks"]["blob"] == "client not initialized"
         finally:
-            client.app.state.s3_client = original
+            client.app.state.s3_client = original  # ty:ignore[unresolved-attribute]
 
     def test_s3_check_failure(self, client: TestClient) -> None:
         mock_client = MagicMock()
         from unittest.mock import AsyncMock  # noqa: PLC0415
 
         mock_client.head_bucket = AsyncMock(side_effect=RuntimeError("S3 unreachable"))
-        original = client.app.state.s3_client
-        client.app.state.s3_client = mock_client
+        original = client.app.state.s3_client  # ty:ignore[unresolved-attribute]
+        client.app.state.s3_client = mock_client  # ty:ignore[unresolved-attribute]
         try:
             resp = client.get("/health/ready/")
             assert resp.status_code == 200
             body = resp.json()
-            assert "S3 unreachable" in body["checks"]["s3"]
+            assert "S3 unreachable" in body["checks"]["blob"]
             assert body["status"] == "ok"
         finally:
-            client.app.state.s3_client = original
+            client.app.state.s3_client = original  # ty:ignore[unresolved-attribute]
+
+    def test_gcs_success(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "gcs"):
+            mock_client = MagicMock()
+            mock_client.bucket.return_value.exists.return_value = True
+            client.app.state.gcs_client = mock_client  # ty:ignore[unresolved-attribute]
+            try:
+                resp = client.get("/health/ready/")
+                assert resp.status_code == 200
+                assert resp.json()["checks"]["blob"] == "ok"
+            finally:
+                del client.app.state.gcs_client  # ty:ignore[unresolved-attribute]
+
+    def test_gcs_not_found(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "gcs"):
+            mock_client = MagicMock()
+            mock_client.bucket.return_value.exists.return_value = False
+            client.app.state.gcs_client = mock_client  # ty:ignore[unresolved-attribute]
+            try:
+                resp = client.get("/health/ready/")
+                assert resp.status_code == 200
+                assert resp.json()["checks"]["blob"] == "bucket not found"
+            finally:
+                del client.app.state.gcs_client  # ty:ignore[unresolved-attribute]
+
+    def test_gcs_client_not_initialized(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "gcs"):
+            resp = client.get("/health/ready/")
+            assert resp.status_code == 200
+            assert resp.json()["checks"]["blob"] == "client not initialized"
+
+    def test_gcs_check_failure(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "gcs"):
+            mock_client = MagicMock()
+            mock_client.bucket.return_value.exists.side_effect = RuntimeError("GCS error")
+            client.app.state.gcs_client = mock_client  # ty:ignore[unresolved-attribute]
+            try:
+                resp = client.get("/health/ready/")
+                assert resp.status_code == 200
+                assert "GCS error" in resp.json()["checks"]["blob"]
+            finally:
+                del client.app.state.gcs_client  # ty:ignore[unresolved-attribute]
+
+    def test_azure_success(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "azure"):
+            mock_client = MagicMock()
+            mock_client.get_container_client.return_value.exists.return_value = True
+            client.app.state.azure_presign_client = mock_client  # ty:ignore[unresolved-attribute]
+            try:
+                resp = client.get("/health/ready/")
+                assert resp.status_code == 200
+                assert resp.json()["checks"]["blob"] == "ok"
+            finally:
+                del client.app.state.azure_presign_client  # ty:ignore[unresolved-attribute]
+
+    def test_azure_not_found(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "azure"):
+            mock_client = MagicMock()
+            mock_client.get_container_client.return_value.exists.return_value = False
+            client.app.state.azure_presign_client = mock_client  # ty:ignore[unresolved-attribute]
+            try:
+                resp = client.get("/health/ready/")
+                assert resp.status_code == 200
+                assert resp.json()["checks"]["blob"] == "container not found"
+            finally:
+                del client.app.state.azure_presign_client  # ty:ignore[unresolved-attribute]
+
+    def test_azure_client_not_initialized(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "azure"):
+            resp = client.get("/health/ready/")
+            assert resp.status_code == 200
+            assert resp.json()["checks"]["blob"] == "client not initialized"
+
+    def test_azure_check_failure(self, client: TestClient) -> None:
+        with patch("matyan_frontier.health.SETTINGS.blob_backend_type", "azure"):
+            mock_client = MagicMock()
+            mock_client.get_container_client.return_value.exists.side_effect = RuntimeError("Azure error")
+            client.app.state.azure_presign_client = mock_client  # ty:ignore[unresolved-attribute]
+            try:
+                resp = client.get("/health/ready/")
+                assert resp.status_code == 200
+                assert "Azure error" in resp.json()["checks"]["blob"]
+            finally:
+                del client.app.state.azure_presign_client  # ty:ignore[unresolved-attribute]

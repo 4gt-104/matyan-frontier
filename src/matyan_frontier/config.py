@@ -16,7 +16,7 @@ _DEV_KAFKA_BOOTSTRAP = "localhost:9092"
 
 
 def validate_production_settings(settings: Settings) -> None:  # noqa: C901, PLR0912
-    """When environment is production, require that S3/Kafka settings are not dev defaults."""
+    """When environment is production, require that blob storage/Kafka settings are not dev defaults."""
     if settings.environment != "production":
         return
     match settings.blob_backend_type:

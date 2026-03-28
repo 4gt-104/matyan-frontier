@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from matyan_frontier.kafka.producer import KafkaProducer
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncGenerator, Generator
 
 
 class MockKafkaProducer(KafkaProducer):
@@ -63,7 +63,7 @@ def _make_mock_session() -> MagicMock:
     session = MagicMock()
 
     @asynccontextmanager
-    async def _mock_client(**_kwargs: object) -> object:
+    async def _mock_client(**_kwargs: object) -> AsyncGenerator[MagicMock, None]:
         yield _make_mock_s3_client()
 
     session.client = _mock_client

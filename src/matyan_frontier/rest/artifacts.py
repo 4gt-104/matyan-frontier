@@ -7,9 +7,7 @@ import os
 from typing import TYPE_CHECKING
 
 from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
-from botocore.exceptions import ClientError
 from fastapi import APIRouter, Request
-from loguru import logger
 from pydantic import BaseModel
 
 from matyan_frontier.config import SETTINGS
@@ -38,15 +36,6 @@ async def get_version() -> dict:
         "version": _get_frontier_version(),
         "component": "frontier",
     }
-
-
-async def ensure_bucket(client: S3Client, bucket: str) -> None:
-    """Create *bucket* if it does not exist yet (async, using aioboto3 client)."""
-    try:
-        await client.head_bucket(Bucket=bucket)
-    except ClientError:
-        await client.create_bucket(Bucket=bucket)
-        logger.info("Created S3 bucket {!r}", bucket)
 
 
 class PresignRequest(BaseModel):
