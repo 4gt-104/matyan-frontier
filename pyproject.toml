@@ -105,3 +105,22 @@ dev = [
     "pytest-asyncio~=0.25",
     "types-aiobotocore-s3>=3.2.1",
 ]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-aarch64", "linux-64", "osx-arm64"]
+
+[tool.pixi.pypi-dependencies]
+matyan-frontier = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tool.pixi.feature.dev]
+pypi-dependencies = { matyan-api-models = { path = "../matyan-api-models", editable = true } }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+python = "~=3.12.0"
